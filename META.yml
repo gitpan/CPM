@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               CPM
-version:            1.1_01
+version:            1.1_02
 abstract:           Complete module to work with MyPrinterCloud System
 author:
     - Juan Jose 'Peco' San Martin <peco@cpan.org>

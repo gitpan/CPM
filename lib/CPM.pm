@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use vars qw($VERSION);
 
-$VERSION="1.1_01";
+$VERSION="1.1_02";
 
 use IO::Socket;
 use Net::SNMP;
@@ -767,6 +767,10 @@ Read printers of a List provided by the configuration file and send the data by 
 Discover the networked printers and use the Call method to send the data
 
 =back
+
+=head1 AUTHOR
+
+Juan Jose 'Peco' San Martin, C<< <peco at cpan.org> >>
 
 =head1 COPYRIGHT
 
