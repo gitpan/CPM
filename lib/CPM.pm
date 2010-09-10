@@ -1,17 +1,20 @@
 package CPM;
 
 use strict;
-no strict 'refs';
+#no strict 'refs';
 use warnings;
 use vars qw($VERSION);
 
-$VERSION=1.0_01;
+$VERSION="1.1_01";
 
 use IO::Socket;
 use Net::SNMP;
 use Net::Address::IP::Local;
 use Net::Ping;
+use Net::SMTP_auth;
+use LWP::UserAgent;
 use XML::Simple;
+
 
 sub new{
   my $class=shift;
@@ -23,11 +26,15 @@ sub new{
 
 sub _init{
   my $self=shift;
+  
+  if (defined ($self->{-config})){$self->{config}=$self->{-config};}
+  else{ $self->{config}='config.xml';}
+
   my $testip=eval{$self->{address}=Net::Address::IP::Local->public};
   if($@){$self->{address}='127.0.0.1';}
   $self->{net}=$self->{address};
   $self->{net}=~s/\.\d*\Z//; # extract net from address
-  $self->{xml}=XMLin('config.xml',('forcearray',['device']));
+  $self->{xml}=XMLin($self->{config},('forcearray',['device']));
   $self->{url}=$self->{xml}->{call}.'?login='.$self->{xml}->{id}->{user}.'&nppas='.$self->{xml}->{id}->{pass};
 
   return $self;
@@ -37,7 +44,7 @@ sub saveconfig{
   my $self=shift;
   my $out=XML::Simple::XMLout($self->{xml},('keeproot',1,xmldecl=>'<?xml version="1.0" encoding="UTF-8"?>')) || die "can't XMLout: $!";
 
-  open (OUTFILE, '>./config.xml') || die "can't open output file: $!";
+  open (OUTFILE, '>'.$self->{config}) || die "can't open output file: $!";
   binmode(OUTFILE, ":utf8");
   print OUTFILE $out;
   close OUTFILE;
@@ -52,7 +59,7 @@ sub request
   my %properties=@_; # rest of params by hash
   
   my $type='none';
-  $type=$properties{'-type'} if defined;
+  $type=$properties{'-type'} if defined $properties{'-type'};
 
   my $session=Net::SNMP->session(-hostname=>$self->{target});
   if (!defined($session)) {return "TimeOut";}
@@ -381,29 +388,385 @@ sub getmodel
   return $host;
 }
 
+sub listandcall
+{
+   my $self=shift;
+   my %properties=@_; # rest of params by hash
+   my $browser = LWP::UserAgent->new;
+   my $printers=0;
+  
+   my $verbose=0;
+   $verbose=$properties{'-verbose'} if defined $properties{'-verbose'};
+
+   my $devices=$self->{xml}->{devices}->{device};
+   foreach my $device(@$devices)
+   {
+      $self->{target}=$device->{ip};
+      print "Checking $self->{target}\n" if $verbose;
+      if(my $sn=$self->checkip)
+      {
+        $printers++;
+        print "Printer found: $sn\n" if $verbose;
+        print "Connecting... " if $verbose;
+        my $response = $browser->get($self->{url}.'&devid='.$sn);
+        if($response->is_success)
+        {
+          print "OK\n" if $verbose;
+          my $answer=$response->decoded_content;
+          if($answer eq 'OK:GEN')
+          {
+            print "No defined model, using Generics.\n" if $verbose;
+            if(my $host=$self->getgeneric)
+            {
+              print "Sending data\n" if $verbose;
+              my $a=$browser->get($self->{url}.'&devid='.$sn.'&devread=1'.$host->{RESPONSE});
+            }
+            else
+            {
+               print "Error during the data validation.\n" if $verbose;
+               return "ERROR: data validation failure";
+            }
+          }
+          elsif($answer=~/OK:OIDL#.*/)
+          {
+              print "Model identified\n" if $verbose;
+              my $host=$self->getmodel($answer);
+              $browser->get($self->{url}.'&devid='.$sn.'&devread=1'.$host->{RESPONSE});
+          }
+          elsif($answer=~/OK:MR#.*/)
+          {
+               print "Maximun number of readings per day achieved.\n" if $verbose;
+	      return "ERROR: Maximun number of readings per day achieved";
+          }
+          elsif($answer=~/OK:UP#.*/)
+          {
+            print "Error, please verify yor configuration.\n" if $verbose;
+            return "ERROR: configuration fault";
+          }
+        }
+        else
+        {
+          print "Connection failed!\n" if $verbose;
+          return "ERROR: connection failed";
+        }
+      } 
+    }
+    print "$printers Printer(s) monitorized\n" if $verbose;
+    return "OK $printers";
+}
+
+sub discoverandcall
+{
+   my $self=shift;
+   my %properties=@_; # rest of params by hash
+   my $browser = LWP::UserAgent->new;
+   my $printers=0;
+  
+   my $verbose=0;
+   $verbose=$properties{'-verbose'} if defined $properties{'-verbose'};
+
+   my $devices=$self->{xml}->{devices}->{device};
+   my $init=1;
+   my $end=254;
+   $init=$self->{xml}->{range}->{from} if defined $self->{xml}->{range}->{from};
+   $end=$self->{xml}->{range}->{to} if defined $self->{xml}->{range}->{to};
+   for (my $i=$init;$i<=$end;$i++)
+   {
+      $self->{target}=$self->{net}.'.'.$i;
+      print "Checking $self->{target}\n" if $verbose;
+      if(my $sn=$self->checkip)
+      {
+        $printers++;
+	print "Printer found: $sn\n" if $verbose;
+        my $response = $browser->get($self->{url}.'&devid='.$sn);
+        if($response->is_success)
+        {
+          my $answer=$response->decoded_content;
+          if($answer eq 'OK:GEN')
+          {
+	    print "No model identified, using Generics.\n" if $verbose;
+            if(my $host=$self->getgeneric)
+            {
+              my $a=$browser->get($self->{url}.'&devid='.$sn.'&devread=1'.$host->{RESPONSE});
+              print "Sending data.\n" if $verbose;
+            }
+            else
+            {
+		 print "Error during the data validation.\n" if $verbose;
+                 return "ERROR: data validation failure";
+            }
+          }
+          elsif($answer=~/OK:OIDL#.*/)
+          {
+	      print "Model identified.\n" if $verbose;
+              my $host=$self->getmodel($answer);
+              $browser->get($self->{url}.'&devid='.$sn.'&devread=1'.$host->{RESPONSE});
+          }
+          elsif($answer=~/OK:MR#.*/)
+          {
+              print "Maximum number of readings per day achieved.\n" if $verbose; 
+	      return "ERROR: maximum number of readings per day achieved";
+          }
+          elsif($answer=~/OK:UP#.*/)
+          {
+              print "Error, please verify yor configuration.\n" if $verbose;
+              return "ERROR: configuration fault";
+          }
+        }
+        else
+        {
+               print "Connection failed!\n" if $verbose;
+               return "ERROR: connection failed";
+        }
+      } 
+    }
+    print "$printers Printer(s) monitorized\n";
+    return "OK $printers";
+}
+
+sub listandmail
+{
+   my $self=shift;
+   my %properties=@_; # rest of params by hash
+   my $verbose=0;
+   $verbose=$properties{'-verbose'} if defined $properties{'-verbose'};
+
+   my $printers=0;
+   my $user=$self->{xml}->{mail}->{user};
+   my $pass=$self->{xml}->{mail}->{pass};
+   my $server=$self->{xml}->{mail}->{smtp};
+   my $to=$self->{xml}->{mail}->{to};
+   my $body_mail = "Mail sent by CPM - list\n\n#####\n";
+
+   my $devices=$self->{xml}->{devices}->{device};
+   foreach my $device(@$devices)
+   {
+      $self->{target}=$device->{ip};
+      print "Checking $self->{target}\n" if $verbose;
+      $printers++;
+      print "Printer located\n" if $verbose;
+      $body_mail.="\n\nDEVICE ".$device->{number}.": ".$self->{xml}->{id}->{user}."\n";
+      my $oids=$device->{oid};print "\n";
+      my @keys=keys(%$oids);
+      foreach my $oid(@keys)
+      {
+	my $translate='Y';
+	my $walk='N';
+	if($oids->{$oid}->{content}=~/\AMAC.*/)
+	{
+		$translate='N';
+	}
+	if($oids->{$oid}->{content}=~/\AW.*/)
+	{
+		$walk='Y';
+	}
+	# filter any non OID
+	$oids->{$oid}->{content}=~/..*/;$oids->{$oid}->{content}=$&;
+	my $snmp;
+	if($walk eq 'Y')
+	{
+		$snmp=$self->requesttable($oids->{$oid}->{content});
+	}
+	else
+	{
+		$snmp=$self->request($oids->{$oid}->{content});
+	}
+	if($translate eq 'N')
+	{
+		 $snmp=~s/0x//; # remove 0x00
+                 $snmp=~s/.{2}/$&\:/g; # add the : every two digits
+                 $snmp=~s/:\Z//; # remove the last :
+                 $snmp=uc($snmp); # convert to capital letters
+	}
+        $body_mail.=" ".$oid.": ".$snmp."\n";
+      } 
+    }
+    #Send the email
+    print "Composing email..." if $verbose;
+    my $smtp=Net::SMTP_auth->new($server);
+    $smtp->auth('LOGIN',$user,$pass);
+    $smtp->mail($user);
+    $smtp->to($to);
+    $smtp->data();
+    $smtp->datasend("Subject: CPM $self->{xml}->{id}->{user}\n");
+    $smtp->datasend("To: $to\n");
+    $smtp->datasend("From: MyPrinterCloud\n");
+    $smtp->datasend($body_mail);
+    $smtp->dataend;
+    $smtp->quit;
+    print "Sent!\n" if $verbose ;
+    return "OK $printers";
+}
+
+sub auto
+{
+   my $self=shift;
+   my %properties=@_; # rest of params by hash
+   my $verbose=0;
+   $verbose=$properties{'-verbose'} if defined $properties{'-verbose'};
+   if($self->{xml}->{id}->{comm} eq 'call')
+   {
+	print "Using CALL" if $verbose;
+	if($self->{xml}->{id}->{mode} eq 'list')      
+	{
+		print " with a LIST\n" if $verbose;
+		return $self->listandcall(-verbose=>$verbose);
+	}
+	else
+	{
+		print " and DISCOVERING\n" if $verbose;
+		return $self->discoverandcall(-verbose=>$verbose);
+	}
+    }
+    else
+    {
+	if($self->{xml}->{id}->{mode} ne 'list')
+	{
+		print "Discover by email is not implemented!\n" if $verbose;
+                return "ERROR: Discover by email is not implemented";
+	}
+        print "Using SMTP-auth from a fixed list and OIDs\n" if $verbose;	
+	return $self->listandmail(-verbose=>$verbose);
+    }
+}
+
+
 1;
 
 __END__
 
 =head1 NAME
 
-CPM - Simple module to work with MyPrinterCloud system
+CPM - Complete module to work with MyPrinterCloud System
 
 =head1 SYNOPSIS
 
  use CPM;
  my $env=CPM->new();
- my $oid='.1.3.6.1.2.1.2.2.1.6.2';
- my $result=$env->request($oid, -type=>'mac');
- print "MAC: $result\n";
+ $env->auto(-verbose=>1);
 
 =head1 DESCRIPTION
 
-The CPM module manages the API of MyPrinterCloud.
+The CPM module manages the API of MyPrinterCloud, providing the subroutines to collect the information from the networked printers and to transmit it to CPS (Cloud Printing Server). It offers several options to accomplish key design criteria such as non-invasive, open, flexible, standard and scalable.
 
-=head1 AUTHOR
+=head1 FUNCTIONALITY
 
-Juan José 'Peco' San Martín, C<< <peco at cpan.org> >>
+The CPM functionality is completely defined by its configuration file (config.xml) that acts also, as firmware of the module.
+
+=head1 Configuration sample
+
+The CPM needs a default configuration file that must be adjusted by the user, at least, including his credentials (valid user in MyPrinterCloud).
+
+<?xml version="1.0" encoding="UTF-8"?>
+  <opt call="http://myprintercloud.endofinternet.net/np/selector.pl">
+    <id comm="call" 
+        date="2010-09-10"
+        mode="discover"
+        pass="xxx"
+        type="soft-public"
+        user="demo@nubeprint.com"
+    />
+    <range from="105" to="115"/>
+  </opt>
+
+=head2 ID section
+
+=over 3
+ 
+=item comm [email,call]: it defines the communication method
+
+=item mode [discover,list]: set if the CPM must discover the network or only collect data from the printers previously identified in a list
+
+=item user: email account valid on the CPS or MyPrinterCloud
+
+=item pass: password of a valid user of the CPS or MyPrinterCloud
+
+=item type: optional
+
+=item date: date when the configuration file was built by the CPS.
+
+=back
+
+=head2 Communication channel 
+
+Communication with the CPS accepts two different forms depending on the needs of the destination network. Also, note that although there are two mechanisms you can activate only one per CPM.
+
+=head3 Call
+
+This method is based on the HTTP standard, which operates in real time and is bidirectional. That allows the CPM apply the latest set of OIDs to be queried for a particular machine. Although an HTTP connection is needed, it is a very efficient solution.
+
+<call="http://myprintercloud.endofinternet.net/np/selector.pl"/>
+
+=head3 Email
+
+This method is based on the SMTP standard with Auth support. When it's activated, the CPM collects all the information from the networked printers, composes a summary email, and sends it to the CPS. Obviously it is not bidirectional, nor in real-time, but in some cases this solution provides the Administrator an easier way to check or audit the information being transmitted.
+
+<mail pass="yyy" smtp="myprintercloud.com" user="aaa@myprintercloud.com"/>
+
+=head2 Modes
+
+=head3 Discover
+
+If this method is enabled, the CPM discovers all the networked printers and for each one, it will request information to the CPS (if it's already registered, its model, the set of OIDs, ...). The CPM auto-detects the local net in order to make a scanning of the LAN.
+
+=head4 Range
+
+The default discover behaviour can be modified specifying the local range in where the CPM should scan.
+
+<range from="105" to="110"/>
+
+=head3 List
+
+In this case the CPM gets a list of printers (section devices, embedded into the config file) to read, and for each one, it has already all the information needed to make a successful request.
+
+	<devices>
+	    <device ip="192.168.2.108" number="0">
+	      <oid name="C1">.1.3.6.1.4.1.11.2.3.9.4.2.1.1.3.3.0</oid>
+	      <oid name="C18">.1.3.6.1.4.1.11.2.3.9.4.2.1.1.3.2.0</oid>
+	      <oid name="C2">.1.3.6.1.2.1.43.10.2.1.4.1.1</oid>
+	      <oid name="C4">.1.3.6.1.2.1.43.11.1.1.8.1.1</oid>
+	      <oid name="C5">.1.3.6.1.2.1.43.11.1.1.9.1.1</oid>
+	      <oid name="C59">.1.3.6.1.2.1.43.11.1.1.8.1.2</oid>
+	      <oid name="C60">.1.3.6.1.2.1.43.11.1.1.9.1.2</oid>
+	    </device>
+	     <device ip="192.168.2.109" number="1">
+	      <oid name="C1">.1.3.6.1.4.1.11.2.3.9.4.2.1.1.3.3.0</oid>
+	      <oid name="C18">.1.3.6.1.4.1.11.2.3.9.4.2.1.1.3.2.0</oid>
+	      <oid name="C2">.1.3.6.1.2.1.43.10.2.1.4.1.1</oid>	
+	      <oid name="C4">.1.3.6.1.2.1.43.11.1.1.8.1.1</oid>
+	      <oid name="C5">.1.3.6.1.2.1.43.11.1.1.9.1.1</oid>
+	      <oid name="C59">.1.3.6.1.2.1.43.11.1.1.8.1.2</oid>
+	      <oid name="C60">.1.3.6.1.2.1.43.11.1.1.9.1.2</oid>
+	    </device>
+	</devices>
+
+=head1 SUBROUTINES
+
+The CPM exports several subroutines to allow the developer to choose the way to handle the different transactions.
+
+=over 4
+ 
+=item new([-config=>'config.xml'])
+
+Create the object to handle the readings and the data transaction
+
+=item auto([-verbose=1]
+
+Complete the transaction using the directives from the configuration file
+
+=item listandcall([-verbose=1])
+
+Read printers of a List provided by the configuration file and use the Call method to send the data
+
+=item listandmail([-verbose=1])
+
+Read printers of a List provided by the configuration file and send the data by email
+
+=item discoverandcall([-verbose=1])
+
+Discover the networked printers and use the Call method to send the data
+
+=back
 
 =head1 COPYRIGHT
 
