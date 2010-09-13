@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use vars qw($VERSION);
 
-$VERSION="1.1_02";
+$VERSION="1.2_01";
 
 use IO::Socket;
 use Net::SNMP;
@@ -52,7 +52,7 @@ sub saveconfig{
 }
 
 sub request
-# Make a SNMP request to read any OID (i.e Serial and Model)
+# Make an SNMP request to read any OID (i.e Serial and Model)
 {
   my $self=shift;
   my $oid=shift;
@@ -91,7 +91,7 @@ sub request
 }
 
 sub requesttable
-# Make a SNMP walk requests
+# Make an SNMP walk request
 {
   my $self=shift;
   my $baseoid=shift;
@@ -740,7 +740,17 @@ In this case the CPM gets a list of printers (section devices, embedded into the
 	    </device>
 	</devices>
 
-=head1 SUBROUTINES
+=head1 CLASS
+
+ use CPM;
+ my $env=CPM->new();
+ $env->{config}; # Configuration file
+ $env->{xml}; # Points to the xml structure of the configuration file
+ $env->{address}; # Local IP
+ $env->{net}; # Network address
+ $env->{target}; # Address to check
+
+=head1 HIGH-LEVEL SUBROUTINES
 
 The CPM exports several subroutines to allow the developer to choose the way to handle the different transactions.
 
@@ -765,6 +775,39 @@ Read printers of a List provided by the configuration file and send the data by 
 =item discoverandcall([-verbose=1])
 
 Discover the networked printers and use the Call method to send the data
+
+=back
+
+=head1 MEDIUM-LEVEL SUBROUTINES
+
+=over 4
+
+=item saveconfig
+
+Save the configuration data into the xml file
+
+=item request($oid,[-type=>MAC|SN])
+
+Make an SNMP request to read any OID.
+If MAC, it converts the hex values into an string like AA:BB:CC:DD
+If SN, it checks that it's a valid string. Enough lenght, and not resetted.
+Always converts the hex to ASCII strings
+
+=item requesttable
+
+Make an SNMP walk request to read a complete branch
+
+=item checkip
+
+Determinate if exists an actived printer using the IP. If yes, it returns its SN
+
+=item getgeneric
+
+Read the Generics. It uses the common OIDs to try to identify the printer model and collect the basic information.
+
+=item getmodel
+
+Read the specific model of printer. This function receives information from the CPS (OIDs of the model) and performs a specific SNMP request.
 
 =back
 
