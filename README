@@ -1,6 +1,6 @@
 CPM
 
-This is a simple module to work with MyPrinterCloud systems.
+This is a module to work with MyPrinterCloud systems.
 It provides functions to discover the networked printers, make generic-snmp queries and also transmit this information to the server (myprintercloud service).
 
 INSTALLATION

@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use vars qw($VERSION);
 
-$VERSION="1.2_01";
+$VERSION="1.3";
 
 use IO::Socket;
 use Net::SNMP;
@@ -220,6 +220,9 @@ sub getgeneric
   elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.19.5.1.9.5')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='8-';}
   elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.3.2.3.2.1.4.128.1')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='9-';}
   elsif(($value=$self->request('.1.3.6.1.4.1.641.2.1.5.3.0')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='10-';}
+
+  elsif(($value=$self->request('.1.3.6.1.2.1.43.10.2.1.4.1.1')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='11-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.641.2.1.5.1.0')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='12-';}
 
   $host->{MC1}='100';
   if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.1')) ne 'UnknownOID'){$host->{MC1}=$value;$host->{TRACE}.='1-';}
@@ -817,7 +820,7 @@ Juan Jose 'Peco' San Martin, C<< <peco at cpan.org> >>
 
 =head1 COPYRIGHT
 
-Copyright 2010 Nubeprint
+Copyright 2010 NubePrint
 
 This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
 
