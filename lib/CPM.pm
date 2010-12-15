@@ -1,11 +1,10 @@
 package CPM;
 
 use strict;
-#no strict 'refs';
 use warnings;
 use vars qw($VERSION);
 
-$VERSION="1.3";
+$VERSION="1.51";
 
 use IO::Socket;
 use Net::SNMP;
@@ -19,9 +18,9 @@ use XML::Simple;
 sub new{
   my $class=shift;
   my $self={@_};
-   bless($self, $class);
-   $self->_init;
-   return $self;
+  bless($self, $class);
+  $self->_init;
+  return $self;
 }
 
 sub _init{
@@ -29,14 +28,8 @@ sub _init{
   
   if (defined ($self->{-config})){$self->{config}=$self->{-config};}
   else{ $self->{config}='config.xml';}
-
-  my $testip=eval{$self->{address}=Net::Address::IP::Local->public};
-  if($@){$self->{address}='127.0.0.1';}
-  $self->{net}=$self->{address};
-  $self->{net}=~s/\.\d*\Z//; # extract net from address
-  $self->{xml}=XMLin($self->{config},('forcearray',['device']));
+  $self->{xml}=XMLin($self->{config},('forcearray',['device','range']));
   $self->{url}=$self->{xml}->{call}.'?login='.$self->{xml}->{id}->{user}.'&nppas='.$self->{xml}->{id}->{pass};
-
   return $self;
 }
 
@@ -80,6 +73,7 @@ sub request
              elsif($result->{$oid}=~/X{5,}/){return "UnknownOID";}
              else{
                   if($result->{$oid}=~/0x.*/){$result->{$oid}=_hex2ascii($result->{$oid});}
+		  $result->{$oid}=~s/\W*//g;
                   return $result->{$oid};
              }
      }
@@ -206,148 +200,131 @@ sub getgeneric
   ($host->{SN},$host->{TRACE})=$self->_getsn;
   
   $host->{TOTAL}='U_O';
-  if(($value=$self->request('.1.3.6.1.2.1.43.10.2.1.4.1.1')) ne 'UnknownOID'){$host->{TOTAL}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.641.2.1.5.1.0')) ne 'UnknownOID'){$host->{TOTAL}=$value;$host->{TRACE}.='2-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.10.2.1.4.1.1')) ne 'UnknownOID'){$host->{TOTAL}=$value;$host->{TRACE}.='20-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.641.2.1.5.1.0')) ne 'UnknownOID'){$host->{TOTAL}=$value;$host->{TRACE}.='21-';}
 
   $host->{COLOR}='U_O';
-  if(($value=$self->request('.1.3.6.1.4.1.11.2.3.9.4.2.1.4.1.2.7.0')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.1248.1.2.2.27.1.1.4.1.1')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.1347.42.2.2.1.1.3.1.2')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='3-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.253.8.53.13.2.1.6.1.20.33')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='4-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.19.5.1.9.12')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='5-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.19.5.1.9.13')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='6-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.19.5.1.9.21')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='7-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.19.5.1.9.5')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='8-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.3.2.3.2.1.4.128.1')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='9-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.641.2.1.5.3.0')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='10-';}
+  if(($value=$self->request('.1.3.6.1.4.1.11.2.3.9.4.2.1.4.1.2.7.0')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='31-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.1248.1.2.2.27.1.1.4.1.1')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='32-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.1347.42.2.2.1.1.3.1.2')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='33-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.253.8.53.13.2.1.6.1.20.33')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='34-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.19.5.1.9.12')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='35-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.19.5.1.9.13')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='36-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.19.5.1.9.21')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='37-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.19.5.1.9.5')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='38-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.3.2.3.2.1.4.128.1')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='39-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.641.2.1.5.3.0')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='40-';}
 
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.10.2.1.4.1.1')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='11-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.641.2.1.5.1.0')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='12-';}
+  elsif(($value=$self->request('.1.3.6.1.2.1.43.10.2.1.4.1.1')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='41-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.641.2.1.5.1.0')) ne 'UnknownOID'){$host->{COLOR}=$value;$host->{TRACE}.='42-';}
 
   $host->{MC1}='100';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.1')) ne 'UnknownOID'){$host->{MC1}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.4.1')) ne 'UnknownOID'){$host->{MC1}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.20.2.2.1.9.2.3')) ne 'UnknownOID'){$host->{MC1}=$value;$host->{TRACE}.='3-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.1')) ne 'UnknownOID'){$host->{MC1}=$value;$host->{TRACE}.='50-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.4.1')) ne 'UnknownOID'){$host->{MC1}=$value;$host->{TRACE}.='51-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.20.2.2.1.9.2.3')) ne 'UnknownOID'){$host->{MC1}=$value;$host->{TRACE}.='52-';}
   if($host->{MC1}==0){$host->{MC1}=100;}
 
   $host->{CC1}='U_O';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.1')) ne 'UnknownOID'){$host->{CC1}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.3.1')) ne 'UnknownOID'){$host->{CC1}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.253.8.53.20.2.1.7.2.1.4.20.3')) ne 'UnknownOID'){$host->{CC1}=$value;$host->{TRACE}.='3-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.24.1.1.5.1')) ne 'UnknownOID'){$host->{CC1}=$value;$host->{TRACE}.='4-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.1')) ne 'UnknownOID'){$host->{CC1}=$value;$host->{TRACE}.='60-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.3.1')) ne 'UnknownOID'){$host->{CC1}=$value;$host->{TRACE}.='61-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.253.8.53.20.2.1.7.2.1.4.20.3')) ne 'UnknownOID'){$host->{CC1}=$value;$host->{TRACE}.='62-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.24.1.1.5.1')) ne 'UnknownOID'){$host->{CC1}=$value;$host->{TRACE}.='63-';}
 
   $host->{MC2}='100';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.2')) ne 'UnknownOID'){$host->{MC2}=$value;$host->{TRACE}.='5-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.4.2')) ne 'UnknownOID'){$host->{MC2}=$value;$host->{TRACE}.='6-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.20.2.2.1.9.2.3')) ne 'UnknownOID'){$host->{MC2}=$value;$host->{TRACE}.='7-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.2')) ne 'UnknownOID'){$host->{MC2}=$value;$host->{TRACE}.='70-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.4.2')) ne 'UnknownOID'){$host->{MC2}=$value;$host->{TRACE}.='71-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.20.2.2.1.9.2.3')) ne 'UnknownOID'){$host->{MC2}=$value;$host->{TRACE}.='72-';}
   if($host->{MC2}==0){$host->{MC2}=100;}
 
   $host->{CC2}='U_O';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.2')) ne 'UnknownOID'){$host->{CC2}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.3.2')) ne 'UnknownOID'){$host->{CC2}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.253.8.53.20.2.1.7.2.1.1.20.3')) ne 'UnknownOID'){$host->{CC2}=$value;$host->{TRACE}.='3-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.24.1.1.5.2')) ne 'UnknownOID'){$host->{CC2}=$value;$host->{TRACE}.='4-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.2')) ne 'UnknownOID'){$host->{CC2}=$value;$host->{TRACE}.='80-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.3.2')) ne 'UnknownOID'){$host->{CC2}=$value;$host->{TRACE}.='81-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.253.8.53.20.2.1.7.2.1.1.20.3')) ne 'UnknownOID'){$host->{CC2}=$value;$host->{TRACE}.='82-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.24.1.1.5.2')) ne 'UnknownOID'){$host->{CC2}=$value;$host->{TRACE}.='83-';}
 
   $host->{MC3}='100';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.3')) ne 'UnknownOID'){$host->{MC3}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.4.3')) ne 'UnknownOID'){$host->{MC3}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.20.2.2.1.9.2.3')) ne 'UnknownOID'){$host->{MC3}=$value;$host->{TRACE}.='3-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.3')) ne 'UnknownOID'){$host->{MC3}=$value;$host->{TRACE}.='90-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.4.3')) ne 'UnknownOID'){$host->{MC3}=$value;$host->{TRACE}.='91-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.20.2.2.1.9.2.3')) ne 'UnknownOID'){$host->{MC3}=$value;$host->{TRACE}.='92-';}
   if($host->{MC3}==0){$host->{MC3}=100;}
 
   $host->{CC3}='U_O';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.3')) ne 'UnknownOID'){$host->{CC3}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.3.3')) ne 'UnknownOID'){$host->{CC3}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.253.8.53.20.2.1.7.2.1.2.20.3')) ne 'UnknownOID'){$host->{CC3}=$value;$host->{TRACE}.='3-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.24.1.1.5.3')) ne 'UnknownOID'){$host->{CC3}=$value;$host->{TRACE}.='4-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.3')) ne 'UnknownOID'){$host->{CC3}=$value;$host->{TRACE}.='100-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.3.3')) ne 'UnknownOID'){$host->{CC3}=$value;$host->{TRACE}.='101-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.253.8.53.20.2.1.7.2.1.2.20.3')) ne 'UnknownOID'){$host->{CC3}=$value;$host->{TRACE}.='102-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.24.1.1.5.3')) ne 'UnknownOID'){$host->{CC3}=$value;$host->{TRACE}.='103-';}
 
   $host->{MC4}='100';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.4')) ne 'UnknownOID'){$host->{MC4}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.4.4')) ne 'UnknownOID'){$host->{MC4}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.20.2.2.1.9.2.3')) ne 'UnknownOID'){$host->{MC4}=$value;$host->{TRACE}.='3-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.4')) ne 'UnknownOID'){$host->{MC4}=$value;$host->{TRACE}.='110-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.4.4')) ne 'UnknownOID'){$host->{MC4}=$value;$host->{TRACE}.='111-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.20.2.2.1.9.2.3')) ne 'UnknownOID'){$host->{MC4}=$value;$host->{TRACE}.='112-';}
   if($host->{MC4}==0){$host->{MC4}=100;}
 
   $host->{CC4}='U_O';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.4')) ne 'UnknownOID'){$host->{CC4}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.3.4')) ne 'UnknownOID'){$host->{CC4}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.253.8.53.20.2.1.7.2.1.3.20.3')) ne 'UnknownOID'){$host->{CC4}=$value;$host->{TRACE}.='3-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.24.1.1.5.4')) ne 'UnknownOID'){$host->{CC4}=$value;$host->{TRACE}.='4-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.4')) ne 'UnknownOID'){$host->{CC4}=$value;$host->{TRACE}.='120-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.1.1.1.100.3.1.1.3.4')) ne 'UnknownOID'){$host->{CC4}=$value;$host->{TRACE}.='121-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.253.8.53.20.2.1.7.2.1.3.20.3')) ne 'UnknownOID'){$host->{CC4}=$value;$host->{TRACE}.='122-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.2.24.1.1.5.4')) ne 'UnknownOID'){$host->{CC4}=$value;$host->{TRACE}.='123-';}
 
   $host->{MC5}='100';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.5')) ne 'UnknownOID'){$host->{MC5}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.8')) ne 'UnknownOID'){$host->{MC5}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.11')) ne 'UnknownOID'){$host->{MC5}=$value;$host->{TRACE}.='3-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.5')) ne 'UnknownOID'){$host->{MC5}=$value;$host->{TRACE}.='130-';}
+  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.8')) ne 'UnknownOID'){$host->{MC5}=$value;$host->{TRACE}.='131-';}
+  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.11')) ne 'UnknownOID'){$host->{MC5}=$value;$host->{TRACE}.='132-';}
   if($host->{MC5}==0){$host->{MC5}=100;}
 
   $host->{CC5}='U_O';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.5')) ne 'UnknownOID'){$host->{CC5}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.8')) ne 'UnknownOID'){$host->{CC5}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.11')) ne 'UnknownOID'){$host->{CC5}=$value;$host->{TRACE}.='3-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.5')) ne 'UnknownOID'){$host->{CC5}=$value;$host->{TRACE}.='140-';}
+  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.8')) ne 'UnknownOID'){$host->{CC5}=$value;$host->{TRACE}.='141-';}
+  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.11')) ne 'UnknownOID'){$host->{CC5}=$value;$host->{TRACE}.='142-';}
 
   $host->{MC6}='100';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.6')) ne 'UnknownOID'){$host->{MC6}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.9')) ne 'UnknownOID'){$host->{MC6}=$value;$host->{TRACE}.='2-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.6')) ne 'UnknownOID'){$host->{MC6}=$value;$host->{TRACE}.='150-';}
+  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.9')) ne 'UnknownOID'){$host->{MC6}=$value;$host->{TRACE}.='151-';}
   if($host->{MC6}==0){$host->{MC6}=100;}
 
   $host->{CC6}='U_O';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.6')) ne 'UnknownOID'){$host->{CC6}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.9')) ne 'UnknownOID'){$host->{CC6}=$value;$host->{TRACE}.='2-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.6')) ne 'UnknownOID'){$host->{CC6}=$value;$host->{TRACE}.='160-';}
+  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.9')) ne 'UnknownOID'){$host->{CC6}=$value;$host->{TRACE}.='161-';}
 
   $host->{MC7}='100';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.7')) ne 'UnknownOID'){$host->{MC7}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.10')) ne 'UnknownOID'){$host->{MC7}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.11')) ne 'UnknownOID'){$host->{MC7}=$value;$host->{TRACE}.='3-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.7')) ne 'UnknownOID'){$host->{MC7}=$value;$host->{TRACE}.='170-';}
+  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.10')) ne 'UnknownOID'){$host->{MC7}=$value;$host->{TRACE}.='171-';}
+  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.8.1.11')) ne 'UnknownOID'){$host->{MC7}=$value;$host->{TRACE}.='172-';}
   if($host->{MC7}==0){$host->{MC7}=100;}
 
   $host->{CC7}='U_O';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.7')) ne 'UnknownOID'){$host->{CC7}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.10')) ne 'UnknownOID'){$host->{CC7}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.11')) ne 'UnknownOID'){$host->{CC7}=$value;$host->{TRACE}.='3-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.7')) ne 'UnknownOID'){$host->{CC7}=$value;$host->{TRACE}.='180-';}
+  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.10')) ne 'UnknownOID'){$host->{CC7}=$value;$host->{TRACE}.='181-';}
+  elsif(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.9.1.11')) ne 'UnknownOID'){$host->{CC7}=$value;$host->{TRACE}.='182-';}
 
   $host->{MODEL}='U_O';
-  if(($value=$self->request('.1.3.6.1.2.1.25.3.2.1.3.1')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.2.1.1.1.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.11.2.3.9.4.2.1.1.3.2.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='3-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.1347.43.5.1.1.1.1')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='4-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.3.1.1.10.1.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='5-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.23.2.32.4.2.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='6-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.253.8.53.3.2.1.2.1')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='7-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.236.11.5.1.1.1.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='8-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.1602.1.1.1.1.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='9-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.1347.43.5.1.1.1.1')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='10-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.1.1.1.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='11-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.7.2.2.3.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='12-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.641.2.1.2.1.2.1')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='13-';}
+  if(($value=$self->request('.1.3.6.1.2.1.25.3.2.1.3.1')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='190-';}
+  elsif(($value=$self->request('.1.3.6.1.2.1.1.1.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='192-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.11.2.3.9.4.2.1.1.3.2.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='192-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.1347.43.5.1.1.1.1')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='193-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.2001.1.3.1.1.10.1.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='194-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.23.2.32.4.2.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='195-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.253.8.53.3.2.1.2.1')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='196-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.236.11.5.1.1.1.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='197-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.1602.1.1.1.1.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='198-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.1347.43.5.1.1.1.1')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='199-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.1.1.1.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='200-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.7.2.2.3.0')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='201-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.641.2.1.2.1.2.1')) ne 'UnknownOID'){$host->{MODEL}=$value;$host->{TRACE}.='202-';}
 
   $host->{FIRMWARE}='U_O';
-  if(($value=$self->request('.1.3.6.1.4.1.11.2.3.9.4.2.1.1.3.6.0')) ne 'UnknownOID'){$host->{FIRMWARE}=$value;$host->{TRACE}.='1-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.1248.1.2.2.2.1.1.2.1.3')) ne 'UnknownOID'){$host->{FIRMWARE}=$value;$host->{TRACE}.='2-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.1248.1.2.2.2.1.1.2.1.4')) ne 'UnknownOID'){$host->{FIRMWARE}=$value;$host->{TRACE}.='3-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.1347.43.5.4.1.5.1.1')) ne 'UnknownOID'){$host->{FIRMWARE}=$value;$host->{TRACE}.='4-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.6.1.1.4.1')) ne 'UnknownOID'){$host->{FIRMWARE}=$value;$host->{TRACE}.='5-';}
-  elsif(($value=$self->request('.1.3.6.1.4.1.641.1.1.1.0')) ne 'UnknownOID'){$host->{FIRMWARE}=$value;$host->{TRACE}.='6-';}
+  if(($value=$self->request('.1.3.6.1.4.1.11.2.3.9.4.2.1.1.3.6.0')) ne 'UnknownOID'){$host->{FIRMWARE}=$value;$host->{TRACE}.='210-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.1248.1.2.2.2.1.1.2.1.3')) ne 'UnknownOID'){$host->{FIRMWARE}=$value;$host->{TRACE}.='211-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.1248.1.2.2.2.1.1.2.1.4')) ne 'UnknownOID'){$host->{FIRMWARE}=$value;$host->{TRACE}.='212-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.1347.43.5.4.1.5.1.1')) ne 'UnknownOID'){$host->{FIRMWARE}=$value;$host->{TRACE}.='213-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.367.3.2.1.6.1.1.4.1')) ne 'UnknownOID'){$host->{FIRMWARE}=$value;$host->{TRACE}.='214-';}
+  elsif(($value=$self->request('.1.3.6.1.4.1.641.1.1.1.0')) ne 'UnknownOID'){$host->{FIRMWARE}=$value;$host->{TRACE}.='215-';}
 
   $host->{DISPLAY1}=$host->{DISPLAY2}=$host->{DISPLAY3}=$host->{DISPLAY4}='';
-  if(($value=$self->request('.1.3.6.1.2.1.43.16.5.1.2.1.1')) ne 'UnknownOID'){$host->{DISPLAY1}=$value;}
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.16.5.1.2.1.2')) ne 'UnknownOID'){$host->{DISPLAY2}=$value;}
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.16.5.1.2.1.3')) ne 'UnknownOID'){$host->{DISPLAY3}=$value;}
-  elsif(($value=$self->request('.1.3.6.1.2.1.43.16.5.1.2.1.4')) ne 'UnknownOID'){$host->{DISPLAY4}=$value;}
-
-  $host->{MAC}='U_O';
-  if(($value=$self->request('.1.3.6.1.2.1.2.2.1.6.1')) ne 'UnknownOID'){$host->{MAC}=$value;}
-
-  $host->{CD1}=$host->{CD2}=$host->{CD3}=$host->{CD4}=$host->{CD5}=$host->{CD6}=$host->{CD7}=$host->{CD8}='';
-  $host->{CD9}=$host->{CD10}=$host->{CD11}='U_O';
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.6.1.1')) ne 'UnknownOID'){$host->{CD1}=$value};
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.6.1.2')) ne 'UnknownOID'){$host->{CD1}=$value};
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.6.1.3')) ne 'UnknownOID'){$host->{CD3}=$value};
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.6.1.4')) ne 'UnknownOID'){$host->{CD4}=$value};
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.6.1.5')) ne 'UnknownOID'){$host->{CD5}=$value};
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.6.1.6')) ne 'UnknownOID'){$host->{CD6}=$value};
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.6.1.7')) ne 'UnknownOID'){$host->{CD7}=$value};
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.6.1.8')) ne 'UnknownOID'){$host->{CD8}=$value};
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.6.1.9')) ne 'UnknownOID'){$host->{CD9}=$value};
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.6.1.10')) ne 'UnknownOID'){$host->{CD10}=$value};
-  if(($value=$self->request('.1.3.6.1.2.1.43.11.1.1.6.1.11')) ne 'UnknownOID'){$host->{CD11}=$value};
+  if(($value=$self->request('.1.3.6.1.2.1.43.16.5.1.2.1.1')) ne 'UnknownOID'){$host->{DISPLAY1}=$value;$host->{TRACE}.='220-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.16.5.1.2.1.2')) ne 'UnknownOID'){$host->{DISPLAY2}=$value;$host->{TRACE}.='221-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.16.5.1.2.1.3')) ne 'UnknownOID'){$host->{DISPLAY3}=$value;$host->{TRACE}.='222-';}
+  if(($value=$self->request('.1.3.6.1.2.1.43.16.5.1.2.1.4')) ne 'UnknownOID'){$host->{DISPLAY4}=$value;$host->{TRACE}.='223-';}
 
   $host->{RESPONSE}='&L1='.$host->{SN}.'&L2='.$host->{TOTAL}.'&L3='.$host->{COLOR}.'&L4='.$host->{MC1}.
                     '&L5='.$host->{CC1}.'&L6='.$host->{MC2}.'&L7='.$host->{CC2}.'&L8='.$host->{MC3}.
@@ -382,7 +359,7 @@ sub getmodel
     if($oid=~/\AMAC/)
     {
       $oid=~s/\AMAC//;
-      $host->{RESPONSE}.=$counterid.'='.$self->request($oid,'mac').'&';
+      $host->{RESPONSE}.=$counterid.'='.$self->request($oid,-type=>'MAC').'&';
     }
     else{
       $host->{RESPONSE}.=$counterid.'='.$self->request($oid).'&';
@@ -396,10 +373,19 @@ sub listandcall
    my $self=shift;
    my %properties=@_; # rest of params by hash
    my $browser = LWP::UserAgent->new;
+   if($self->{xml}->{proxy} ne '')
+   {
+     $browser->proxy(['http'],$self->{xml}->{proxy});
+   }
+   elsif($self->{xml}->{proxy} eq 'auto')
+   { 
+      $browser->env_proxy;
+   }
+   
    my $printers=0;
-  
    my $verbose=0;
    $verbose=$properties{'-verbose'} if defined $properties{'-verbose'};
+   print "Proxy: $self->{xml}->{proxy}\n" if ($verbose && $self->{xml}->{proxy} ne '');
 
    my $devices=$self->{xml}->{devices}->{device};
    foreach my $device(@$devices)
@@ -463,65 +449,96 @@ sub discoverandcall
    my $self=shift;
    my %properties=@_; # rest of params by hash
    my $browser = LWP::UserAgent->new;
+
+   if($self->{xml}->{proxy} ne '')
+   { 
+      $browser->proxy(['http'],$self->{xml}->{proxy});
+   }
+   elsif($self->{xml}->{proxy} eq 'auto')
+   { 
+      $browser->env_proxy;
+   }
+   
    my $printers=0;
   
    my $verbose=0;
    $verbose=$properties{'-verbose'} if defined $properties{'-verbose'};
 
+   print "Proxy: $self->{xml}->{proxy}\n" if ($verbose && $self->{xml}->{proxy} ne '');
+
    my $devices=$self->{xml}->{devices}->{device};
-   my $init=1;
-   my $end=254;
-   $init=$self->{xml}->{range}->{from} if defined $self->{xml}->{range}->{from};
-   $end=$self->{xml}->{range}->{to} if defined $self->{xml}->{range}->{to};
-   for (my $i=$init;$i<=$end;$i++)
+   
+   my $ranges=$self->{xml}->{range};
+   foreach my $range(@$ranges)
    {
-      $self->{target}=$self->{net}.'.'.$i;
-      print "Checking $self->{target}\n" if $verbose;
-      if(my $sn=$self->checkip)
-      {
-        $printers++;
-	print "Printer found: $sn\n" if $verbose;
-        my $response = $browser->get($self->{url}.'&devid='.$sn);
-        if($response->is_success)
+     if ($range->{lan} eq '')
+     {
+      my $testip=eval{$self->{address}=Net::Address::IP::Local->public};
+      if($@){$self->{address}='127.0.0.1';}
+     }
+     else
+     {
+      $self->{address}=$range->{lan};
+     }
+     
+     $self->{net}=$self->{address};
+     $self->{net}=~s/\.\d*\Z//; # extract net from address
+
+     my $init=1;
+     my $end=254;
+     $init=$range->{from} if defined $range->{from};
+     $end=$range->{to} if defined $range->{to};
+     print "Discovering LAN: $self->{net} [$init - $end] \n" if $verbose;
+     for (my $i=$init;$i<=$end;$i++)
+     {
+        $self->{target}=$self->{net}.'.'.$i;
+        print "Checking $self->{target}\n" if $verbose;
+        if(my $sn=$self->checkip)
         {
-          my $answer=$response->decoded_content;
-          if($answer eq 'OK:GEN')
+          $printers++;
+	  print "Printer found: $sn\n" if $verbose;
+          my $response = $browser->get($self->{url}.'&devid='.$sn);
+          if($response->is_success)
           {
-	    print "No model identified, using Generics.\n" if $verbose;
-            if(my $host=$self->getgeneric)
+            my $answer=$response->decoded_content;
+            if($answer eq 'OK:GEN')
             {
-              my $a=$browser->get($self->{url}.'&devid='.$sn.'&devread=1'.$host->{RESPONSE});
-              print "Sending data.\n" if $verbose;
-            }
-            else
-            {
+	      print "No model identified, using Generics.\n" if $verbose;
+              if(my $host=$self->getgeneric)
+              {
+                my $a=$browser->get($self->{url}.'&devid='.$sn.'&devread=1'.$host->{RESPONSE});
+                print "Sending data.\n" if $verbose;
+              }
+              else
+              {
 		 print "Error during the data validation.\n" if $verbose;
                  return "ERROR: data validation failure";
+              }
+            }
+            elsif($answer=~/OK:OIDL#.*/)
+            {
+	        print "Model identified.\n" if $verbose;
+                my $host=$self->getmodel($answer);
+                $browser->get($self->{url}.'&devid='.$sn.'&devread=1'.$host->{RESPONSE});
+            }
+            elsif($answer=~/OK:MR#.*/)
+            {
+                print "Maximum number of readings per day achieved.\n" if $verbose; 
+	        return "ERROR: maximum number of readings per day achieved";
+            }
+            elsif($answer=~/OK:UP#.*/)
+            {
+                print "Error, please verify yor configuration.\n" if $verbose;
+                return "ERROR: configuration fault";
             }
           }
-          elsif($answer=~/OK:OIDL#.*/)
+          else
           {
-	      print "Model identified.\n" if $verbose;
-              my $host=$self->getmodel($answer);
-              $browser->get($self->{url}.'&devid='.$sn.'&devread=1'.$host->{RESPONSE});
+             print "Connection failed!\n" if $verbose;
+             return "ERROR: connection failed";
           }
-          elsif($answer=~/OK:MR#.*/)
-          {
-              print "Maximum number of readings per day achieved.\n" if $verbose; 
-	      return "ERROR: maximum number of readings per day achieved";
-          }
-          elsif($answer=~/OK:UP#.*/)
-          {
-              print "Error, please verify yor configuration.\n" if $verbose;
-              return "ERROR: configuration fault";
-          }
-        }
-        else
-        {
-               print "Connection failed!\n" if $verbose;
-               return "ERROR: connection failed";
-        }
-      } 
+        } 
+      }
     }
     print "$printers Printer(s) monitorized\n";
     return "OK $printers";
@@ -601,6 +618,71 @@ sub listandmail
     return "OK $printers";
 }
 
+sub discoverandmail
+{
+   my $self=shift;
+   my %properties=@_; # rest of params by hash
+   my $verbose=0;
+   $verbose=$properties{'-verbose'} if defined $properties{'-verbose'};
+
+   my $printers=0;
+   my $user=$self->{xml}->{mail}->{user};
+   my $pass=$self->{xml}->{mail}->{pass};
+   my $server=$self->{xml}->{mail}->{smtp};
+   my $to=$self->{xml}->{mail}->{to};
+   my $body_mail = "Mail sent by CPM - list\n\n#####\n";
+
+   my $ranges=$self->{xml}->{range};
+   foreach my $range(@$ranges)
+   {
+     if ($range->{lan} eq '')
+     {
+      my $testip=eval{$self->{address}=Net::Address::IP::Local->public};
+      if($@){$self->{address}='127.0.0.1';}
+     }
+     else
+     {
+      $self->{address}=$range->{lan};
+     }
+    
+     $self->{net}=$self->{address};
+     $self->{net}=~s/\.\d*\Z//; # extract net from address
+
+     my $init=1;
+     my $end=254;
+     $init=$range->{from} if defined $range->{from};
+     $end=$range->{to} if defined $range->{to};
+     for (my $i=$init;$i<=$end;$i++)
+     {
+        $self->{target}=$self->{net}.'.'.$i;
+        print "Checking $self->{target}\n" if $verbose;
+        if(my $sn=$self->checkip)
+        {
+          $printers++;
+	  print "Printer found: $sn\n" if $verbose;
+          $body_mail.="\n\nDEVICE $printers: ".$self->{xml}->{id}->{user}."\n";
+          my $host=$self->getgeneric;
+          $body_mail.=$host->{RESPONSE}."\n";
+        } 
+     }
+   }
+   #Send the email
+   print "Composing email..." if $verbose;
+   my $smtp=Net::SMTP_auth->new($server);
+   $smtp->auth('LOGIN',$user,$pass);
+   $smtp->mail($user);
+   $smtp->to($to);
+   $smtp->data();
+   $smtp->datasend("Subject: CPM $self->{xml}->{id}->{user}\n");
+   $smtp->datasend("To: $to\n");
+   $smtp->datasend("From: MyPrinterCloud\n");
+   $smtp->datasend($body_mail);
+   $smtp->dataend;
+   $smtp->quit;
+   print "Sent!\n" if $verbose ;
+   return "OK $printers";
+}
+
 sub auto
 {
    my $self=shift;
@@ -625,11 +707,14 @@ sub auto
     {
 	if($self->{xml}->{id}->{mode} ne 'list')
 	{
-		print "Discover by email is not implemented!\n" if $verbose;
-                return "ERROR: Discover by email is not implemented";
+		print "Discover and Email\n" if $verbose;
+                return $self->discoverandmail(-verbose=>$verbose);
 	}
-        print "Using SMTP-auth from a fixed list and OIDs\n" if $verbose;	
-	return $self->listandmail(-verbose=>$verbose);
+	else
+	{
+                print "Using SMTP-auth from a fixed list and OIDs\n" if $verbose;	
+	        return $self->listandmail(-verbose=>$verbose);
+	}
     }
 }
 
@@ -661,7 +746,7 @@ The CPM functionality is completely defined by its configuration file (config.xm
 The CPM needs a default configuration file that must be adjusted by the user, at least, including his credentials (valid user in MyPrinterCloud).
 
 <?xml version="1.0" encoding="UTF-8"?>
-  <opt call="http://myprintercloud.endofinternet.net/np/selector.pl">
+  <opt call="http://myprintercloud.nubeprint.com/np/selector.pl" proxy="" >
     <id comm="call" 
         date="2010-09-10"
         mode="discover"
@@ -669,7 +754,7 @@ The CPM needs a default configuration file that must be adjusted by the user, at
         type="soft-public"
         user="demo@nubeprint.com"
     />
-    <range from="105" to="115"/>
+    <range from="105" to="115" lan=""/>
   </opt>
 
 =head2 ID section
@@ -698,7 +783,7 @@ Communication with the CPS accepts two different forms depending on the needs of
 
 This method is based on the HTTP standard, which operates in real time and is bidirectional. That allows the CPM apply the latest set of OIDs to be queried for a particular machine. Although an HTTP connection is needed, it is a very efficient solution.
 
-<call="http://myprintercloud.endofinternet.net/np/selector.pl"/>
+<call="http://myprintercloud.nubeprint.com/np/selector.pl"/>
 
 =head3 Email
 
@@ -714,9 +799,9 @@ If this method is enabled, the CPM discovers all the networked printers and for 
 
 =head4 Range
 
-The default discover behaviour can be modified specifying the local range in where the CPM should scan.
+The default discover behaviour can be modified specifying the local range and the subnet in where the CPM should scan. By default the CPM assumes the local net and from 1 to 254.
 
-<range from="105" to="110"/>
+<range from="105" to="110" lan="192.168.2.0"/>
 
 =head3 List
 
@@ -747,11 +832,6 @@ In this case the CPM gets a list of printers (section devices, embedded into the
 
  use CPM;
  my $env=CPM->new();
- $env->{config}; # Configuration file
- $env->{xml}; # Points to the xml structure of the configuration file
- $env->{address}; # Local IP
- $env->{net}; # Network address
- $env->{target}; # Address to check
 
 =head1 HIGH-LEVEL SUBROUTINES
 
@@ -778,6 +858,10 @@ Read printers of a List provided by the configuration file and send the data by 
 =item discoverandcall([-verbose=1])
 
 Discover the networked printers and use the Call method to send the data
+
+=item discoverandmail([-verbose=1])
+
+Discover the networked printers and send the data by email
 
 =back
 
